@@ -72,6 +72,13 @@ class BinMergeApp(QWidget):
 		offset_layout.addWidget(offset_label)
 		offset_layout.addWidget(self.offset_edit)
 
+		# 新增 App Header Offset 输入框
+		header_offset_layout = QHBoxLayout()
+		header_offset_label = QLabel('App Header Offset (十六进制/字节):')
+		self.header_offset_edit = QLineEdit('0x80000')
+		self.header_offset_edit.setPlaceholderText('如: 0x80000 或 524288')
+		header_offset_layout.addWidget(header_offset_label)
+		header_offset_layout.addWidget(self.header_offset_edit)
 
 		merge_btn = QPushButton('合并并保存')
 		merge_btn.clicked.connect(self.merge_bin)
@@ -81,6 +88,7 @@ class BinMergeApp(QWidget):
 		layout.addWidget(self.app_label)
 		layout.addWidget(app_btn)
 		layout.addLayout(offset_layout)
+		layout.addLayout(header_offset_layout)
 		layout.addWidget(merge_btn)
 
 		self.setLayout(layout)
@@ -109,15 +117,18 @@ class BinMergeApp(QWidget):
 				boot_data = f_boot.read()
 				app_data = f_app.read()
 				f_out.write(boot_data)
-				# 固定app_header写入0x80000
-				app_header_offset = 0x80000
+				# 读取 header offset 输入框
+				header_offset_str = self.header_offset_edit.text().strip()
+				if header_offset_str.lower().startswith('0x'):
+					app_header_offset = int(header_offset_str, 16)
+				else:
+					app_header_offset = int(header_offset_str)
 				if len(boot_data) < app_header_offset:
 					f_out.write(b'\xFF' * (app_header_offset - len(boot_data)))
 				elif len(boot_data) > app_header_offset:
 					QMessageBox.warning(self, '警告', f'boot文件长度超过0x{app_header_offset:X}，app_header将紧跟boot写入')
 				app_header = self.make_app_header()
 				f_out.write(app_header)
-
 				# app内容写入位置与输入框offset一致
 				offset_str = self.offset_edit.text().strip()
 				if offset_str.lower().startswith('0x'):
