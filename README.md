@@ -32,3 +32,11 @@
 - exe 文件体积较大：可用 UPX 压缩或精简依赖
 - 打包失败：请检查虚拟环境和 requirements.txt 是否完整
 - Tkinter 版本更轻量，推荐用于简单需求
+
+## 相关 Demo 工程
+
+如需 app 和 boot bin 文件的参考工程，可访问 NXP 官方 Unified bootloader Demo：
+
+[ bootloader Demo (NXP 社区)](https://community.nxp.com/t5/S32K-Knowledge-Base/Unified-bootloader-Demo/ta-p/1423099)
+
+该页面包含 bootloader 及应用程序的完整工程和说明。
