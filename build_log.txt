@@ -1,0 +1,26 @@
+240 INFO: PyInstaller: 6.15.0, contrib hooks: 2025.8
+241 INFO: Python: 3.13.5
+306 INFO: Platform: Windows-11-10.0.26100-SP0
+306 INFO: Python environment: D:\CodeWorkSpace\CT_BinMerge\.venv
+307 INFO: wrote D:\CodeWorkSpace\CT_BinMerge\BinMerge.spec
+311 INFO: Module search paths (PYTHONPATH):
+['D:\\CodeWorkSpace\\CT_BinMerge',
+ 'C:\\Users\\vorco.he\\AppData\\Local\\Programs\\Python\\Python313\\python313.zip',
+ 'C:\\Users\\vorco.he\\AppData\\Local\\Programs\\Python\\Python313\\DLLs',
+ 'C:\\Users\\vorco.he\\AppData\\Local\\Programs\\Python\\Python313\\Lib',
+ 'C:\\Users\\vorco.he\\AppData\\Local\\Programs\\Python\\Python313',
+ 'D:\\CodeWorkSpace\\CT_BinMerge\\.venv',
+ 'D:\\CodeWorkSpace\\CT_BinMerge\\.venv\\Lib\\site-packages',
+ 'D:\\CodeWorkSpace\\CT_BinMerge\\.venv\\Lib\\site-packages\\setuptools\\_vendor',
+ 'D:\\CodeWorkSpace\\CT_BinMerge']
+750 INFO: checking Analysis
+750 INFO: Building Analysis because Analysis-00.toc is non existent
+750 INFO: Running Analysis Analysis-00.toc
+750 INFO: Target bytecode optimization level: 0
+750 INFO: Initializing module dependency graph...
+751 INFO: Initializing module graph hook caches...
+761 INFO: Analyzing modules for base_library.zip ...
+2106 INFO: Processing standard module hook 'hook-heapq.py' from 'D:\\CodeWorkSpace\\CT_BinMerge\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+2180 INFO: Processing standard module hook 'hook-encodings.py' from 'D:\\CodeWorkSpace\\CT_BinMerge\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+6711 INFO: Processing standard module hook 'hook-pickle.py' from 'D:\\CodeWorkSpace\\CT_BinMerge\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+^C
