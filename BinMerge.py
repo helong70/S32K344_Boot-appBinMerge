@@ -53,6 +53,8 @@ class BinMergeApp(QWidget):
 		self.app_path = ''
 		self.offset = 0
 		self.init_ui()
+		# 启用拖拽
+		self.setAcceptDrops(True)
 
 	def init_ui(self):
 		layout = QVBoxLayout()
@@ -144,6 +146,31 @@ class BinMergeApp(QWidget):
 			QMessageBox.information(self, '成功', f'合并完成，保存为：{save_path}')
 		except Exception as e:
 			QMessageBox.critical(self, '错误', f'合并失败：{e}')
+
+	def dragEnterEvent(self, event):
+		if event.mimeData().hasUrls():
+			urls = event.mimeData().urls()
+			if any(url.toLocalFile().lower().endswith('.bin') for url in urls):
+				event.acceptProposedAction()
+			else:
+				event.ignore()
+		else:
+			event.ignore()
+
+	def dropEvent(self, event):
+		files = [url.toLocalFile() for url in event.mimeData().urls() if url.toLocalFile().lower().endswith('.bin')]
+		for file in files:
+			# 优先填充未选择的，若都已选则覆盖 app
+			if not self.boot_path:
+				self.boot_path = file
+				self.boot_label.setText(f'Boot 文件: {file}')
+			elif not self.app_path:
+				self.app_path = file
+				self.app_label.setText(f'App 文件: {file}')
+			else:
+				# 都已选，默认覆盖 app
+				self.app_path = file
+				self.app_label.setText(f'App 文件: {file}')
 
 if __name__ == '__main__':
 	import sys
