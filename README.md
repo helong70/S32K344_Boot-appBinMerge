@@ -34,10 +34,44 @@
 - 打包失败：请检查虚拟环境和 requirements.txt 是否完整
 - Tkinter 版本更轻量，推荐用于简单需求
 
-## 相关 Demo 工程
+---
 
-如需 app 和 boot bin 文件的参考工程，可访问 NXP 官方 Unified bootloader Demo：
+# BinMerge Tool (English)
 
-[ bootloader Demo (NXP 社区)](https://community.nxp.com/t5/S32K-Knowledge-Base/Unified-bootloader-Demo/ta-p/1423099)
+## Project Overview
+This tool merges boot and app bin files, supports custom offset, and auto-inserts app header. Both PyQt5 and Tkinter GUI versions are provided, with one-click packaging and environment setup scripts.
 
-该页面包含 bootloader 及应用程序的完整工程和说明。
+## Features
+- Select boot/app bin files
+- Input offset (supports decimal/hex)
+- Auto-insert app header (CRC fixed to 0x3caf, next two bytes 0x00)
+- Merge and save new bin file
+- PyQt5 and Tkinter GUI versions
+- **New:** Drag and drop boot/app bin files directly into the window for auto-loading (fills empty slot first, then overwrites app if both selected)
+
+## Environment Setup
+1. Install Python 3.8 or above
+2. Double-click `init_venv.bat` to create a virtual environment and install dependencies automatically
+
+## Packaging as exe
+- PyQt5 version: Run `BinMerge_build.bat`
+- Tkinter version: Run `BinMerge_tk_build.bat`
+- The generated exe file is in the `dist/` directory
+
+## File Description
+- `BinMerge.py`: PyQt5 main program
+- `BinMerge_tk.py`: Tkinter main program
+- `init_venv.bat`: One-click venv and dependency install
+- `BinMerge_build.bat`: PyQt5 packaging script
+- `BinMerge_tk_build.bat`: Tkinter packaging script
+- `requirements.txt`: Dependency list
+- `.gitignore`: Excludes venv and build folders from git
+
+## Related Demo Project
+For reference boot/app bin files, see the official NXP Unified bootloader Demo:
+[Unified bootloader Demo (NXP Community)](https://community.nxp.com/t5/S32K-Knowledge-Base/Unified-bootloader-Demo/ta-p/1423099)
+
+## FAQ
+- Large exe size: Use UPX or minimize dependencies
+- Packaging failed: Check venv and requirements.txt
+- Tkinter version is lighter, recommended for simple needs
