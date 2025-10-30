@@ -1,10 +1,6 @@
 import sys
 from PyQt5.QtWidgets import (
-	QApplication, QWidget, QLabel, QPushButton, QFileDialog, QVBoxLayout, QHBoxLayout, QMessageBox, QLineEdit
-)
-import sys
-from PyQt5.QtWidgets import (
-	QApplication, QWidget, QLabel, QPushButton, QFileDialog, QVBoxLayout, QHBoxLayout, QMessageBox, QLineEdit
+    QApplication, QWidget, QLabel, QPushButton, QFileDialog, QVBoxLayout, QHBoxLayout, QMessageBox, QLineEdit, QComboBox
 )
 
 class BinMergeApp(QWidget):
@@ -74,6 +70,17 @@ class BinMergeApp(QWidget):
 		offset_layout.addWidget(offset_label)
 		offset_layout.addWidget(self.offset_edit)
 
+		# Board selector
+		board_layout = QHBoxLayout()
+		board_label = QLabel('Board:')
+		self.board_combo = QComboBox()
+		self.board_combo.addItems(['S32K344', 'FU68X6'])
+		self.board_combo.currentTextChanged.connect(self.on_board_change)
+		board_layout.addWidget(board_label)
+		board_layout.addWidget(self.board_combo)
+		# 默认选择 S32K344
+		self.board_combo.setCurrentText('S32K344')
+
 		# 新增 App Header Offset 输入框
 		header_offset_layout = QHBoxLayout()
 		header_offset_label = QLabel('App Header Offset (十六进制/字节):')
@@ -90,6 +97,7 @@ class BinMergeApp(QWidget):
 		layout.addWidget(self.app_label)
 		layout.addWidget(app_btn)
 		layout.addLayout(offset_layout)
+		layout.addLayout(board_layout)
 		layout.addLayout(header_offset_layout)
 		layout.addWidget(merge_btn)
 
@@ -107,6 +115,29 @@ class BinMergeApp(QWidget):
 			self.app_path = path
 			self.app_label.setText(f'App 文件: {path}')
 
+	def on_board_change(self, text):
+		# 当选择不同板卡时调整 offset/header 行为
+		if text == 'FU68X6':
+			# 预设 App Offset 为 0x1500，禁用 header offset
+			try:
+				self.offset_edit.setText('0x1500')
+			except Exception:
+				pass
+			try:
+				self.header_offset_edit.setText('0x0')
+				self.header_offset_edit.setEnabled(False)
+			except Exception:
+				pass
+		else:
+			# 恢复默认行为
+			try:
+				self.header_offset_edit.setEnabled(True)
+				# 恢复默认 header offset 和 app offset
+				self.header_offset_edit.setText('0x80000')
+				self.offset_edit.setText('0x80200')
+			except Exception:
+				pass
+
 	def merge_bin(self):
 		if not self.boot_path or not self.app_path:
 			QMessageBox.warning(self, '提示', '请先选择 Boot 和 App 文件')
@@ -115,34 +146,81 @@ class BinMergeApp(QWidget):
 			save_path, _ = QFileDialog.getSaveFileName(self, '保存合并后的 bin 文件', '', 'Bin Files (*.bin)')
 			if not save_path:
 				return
-			with open(self.boot_path, 'rb') as f_boot, open(self.app_path, 'rb') as f_app, open(save_path, 'wb') as f_out:
+			with open(self.boot_path, 'rb') as f_boot, open(self.app_path, 'rb') as f_app:
 				boot_data = f_boot.read()
 				app_data = f_app.read()
-				f_out.write(boot_data)
-				# 读取 header offset 输入框
-				header_offset_str = self.header_offset_edit.text().strip()
-				if header_offset_str.lower().startswith('0x'):
-					app_header_offset = int(header_offset_str, 16)
-				else:
-					app_header_offset = int(header_offset_str)
-				if len(boot_data) < app_header_offset:
-					f_out.write(b'\xFF' * (app_header_offset - len(boot_data)))
-				elif len(boot_data) > app_header_offset:
-					QMessageBox.warning(self, '警告', f'boot文件长度超过0x{app_header_offset:X}，app_header将紧跟boot写入')
 				app_header = self.make_app_header()
-				f_out.write(app_header)
-				# app内容写入位置与输入框offset一致
-				offset_str = self.offset_edit.text().strip()
-				if offset_str.lower().startswith('0x'):
-					app_offset = int(offset_str, 16)
+				# 根据所选板卡调整行为
+				board = self.board_combo.currentText()
+				if board == 'FU68X6':
+					app_offset = 0x1500
+					header_offset = 0
 				else:
-					app_offset = int(offset_str)
-				cur_pos = f_out.tell()
-				if cur_pos < app_offset:
-					f_out.write(b'\xFF' * (app_offset - cur_pos))
-				elif cur_pos > app_offset:
-					QMessageBox.warning(self, '警告', f'app内容将紧跟app_header写入，未能对齐到0x{app_offset:X}')
-				f_out.write(app_data)
+					# 读取 header offset 输入框
+					header_offset_str = self.header_offset_edit.text().strip()
+					try:
+						header_offset = int(header_offset_str, 0)
+					except Exception:
+						header_offset = 0x80000
+					# app offset 按用户输入
+					try:
+						offset = int(self.offset_edit.text().strip(), 0)
+					except Exception:
+						QMessageBox.warning(self, '错误', 'Offset格式错误')
+						return
+					app_offset = offset
+
+				# 计算需要的合并长度
+				required_len = len(boot_data)
+				if header_offset and header_offset + len(app_header) > required_len:
+					required_len = header_offset + len(app_header)
+				if app_offset + len(app_data) > required_len:
+					required_len = app_offset + len(app_data)
+				# FU68X6 需要在 0x1400 写入一个字节
+				if board == 'FU68X6' and 0x1400 + 1 > required_len:
+					required_len = 0x1400 + 1
+
+				merged = bytearray([0xFF] * required_len)
+				# 写入 boot
+				merged[:len(boot_data)] = boot_data
+				# 对于 FU68X6，要保证 0x0..0x14FF 区间为 0，且 app 从 0x1500 开始
+				# 写入 header（header_offset==0 则跳过）
+				if board == 'FU68X6':
+					# 若 boot 未占满到 app_offset，通过 0x00 填充 boot_end..app_offset
+					if len(boot_data) < app_offset:
+						start_zero = len(boot_data)
+						end_zero = app_offset
+						merged[start_zero:end_zero] = b'\x00' * (end_zero - start_zero)
+					# 若 boot 为空，也将 0x0..app_offset 设置为 0
+					if len(boot_data) == 0:
+						merged[0:app_offset] = b'\x00' * app_offset
+					# 对于 FU68X6，app.bin 中有用数据可能从其内部偏移 0x1500 开始
+					app_src_offset = 0x1500
+					if len(app_data) <= app_src_offset:
+						# app 文件不包含 0x1500 偏移的数据，提示并跳过写入
+						QMessageBox.warning(self, '警告', 'App 文件长度小于 0x1500，未包含从 0x1500 开始的有效数据')
+						write_app_bytes = 0
+					else:
+						write_app_bytes = len(app_data) - app_src_offset
+					# 写入 app 时，把 app.bin 的 0x1500 对应的数据放到合并文件的 0x1500
+					if write_app_bytes:
+						merged[app_offset:app_offset+write_app_bytes] = app_data[app_src_offset:app_src_offset+write_app_bytes]
+
+				# 写入 header（header_offset==0 则跳过）
+				if header_offset:
+					merged[header_offset:header_offset+len(app_header)] = app_header
+				# 写入 app（非 FU68X6 情况直接写入完整 app_data）
+				if board != 'FU68X6':
+					merged[app_offset:app_offset+len(app_data)] = app_data
+				# FU68X6 特殊：在 0x1400 处写入 0xAA
+				if board == 'FU68X6':
+					merged[0x1400] = 0xAA
+				# 如果是 FU68X6，且合并后长度超过 0x7FFF（索引范围 0..0x7FFF），则截断多余部分
+				if board == 'FU68X6' and len(merged) > 0x8000:
+					merged = merged[:0x8000]
+				# 写出最终合并文件
+				with open(save_path, 'wb') as f_out:
+					f_out.write(merged)
 			QMessageBox.information(self, '成功', f'合并完成，保存为：{save_path}')
 		except Exception as e:
 			QMessageBox.critical(self, '错误', f'合并失败：{e}')

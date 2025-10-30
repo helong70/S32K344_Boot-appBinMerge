@@ -28,6 +28,18 @@ class BinMergeApp:
         self.offset_entry.grid(row=2, column=1, sticky='w')
         self.offset_entry.insert(0, '0x100000')
 
+        # Board selector
+        tk.Label(root, text='Board:').grid(row=2, column=2, sticky='e')
+        self.board_var = tk.StringVar(value='S32K344')
+        board_menu = tk.OptionMenu(root, self.board_var, 'S32K344', 'FU68X6', command=self.on_board_change)
+        board_menu.grid(row=2, column=3, sticky='w')
+
+        # App Header Offset (可被特定板卡忽略)
+        tk.Label(root, text='App Header Offset:').grid(row=3, column=0, sticky='e')
+        self.header_offset_entry = tk.Entry(root, width=20)
+        self.header_offset_entry.grid(row=3, column=1, sticky='w')
+        self.header_offset_entry.insert(0, '0x80000')
+
         # Merge button
         tk.Button(root, text='合并', command=self.merge_bin).grid(row=3, column=1, pady=10)
 
@@ -44,6 +56,33 @@ class BinMergeApp:
             self.app_path = path
             self.app_entry.delete(0, tk.END)
             self.app_entry.insert(0, path)
+
+    def on_board_change(self, value):
+        """根据板卡选择调整 UI 行为和值。"""
+        if value == 'FU68X6':
+            # 预设 App Offset 为 0x1500，禁用 header offset
+            try:
+                self.offset_entry.delete(0, tk.END)
+                self.offset_entry.insert(0, '0x1500')
+            except Exception:
+                pass
+            try:
+                self.header_offset_entry.delete(0, tk.END)
+                self.header_offset_entry.insert(0, '0x0')
+                self.header_offset_entry.config(state='disabled')
+            except Exception:
+                pass
+        else:
+            # 恢复默认行为
+            try:
+                self.header_offset_entry.config(state='normal')
+                self.header_offset_entry.delete(0, tk.END)
+                self.header_offset_entry.insert(0, '0x80000')
+                # 恢复默认 app offset
+                self.offset_entry.delete(0, tk.END)
+                self.offset_entry.insert(0, '0x100000')
+            except Exception:
+                pass
 
     def make_app_header(self):
         isFlashProgramSuccessfull = 1
@@ -71,6 +110,8 @@ class BinMergeApp:
     def merge_bin(self):
         boot_path = self.boot_entry.get()
         app_path = self.app_entry.get()
+        # 选择板卡
+        board = self.board_var.get()
         offset_str = self.offset_entry.get()
         try:
             offset = int(offset_str, 0)
@@ -86,12 +127,43 @@ class BinMergeApp:
             with open(app_path, 'rb') as f:
                 app_data = f.read()
             app_header = self.make_app_header()
-            # 固定header写入0x80000
-            merge_size = max(len(boot_data), 0x80000 + len(app_header), offset + len(app_data))
-            merged = bytearray([0xFF] * merge_size)
+            # 根据所选板卡调整行为
+            # 默认 header 写入 offset_from_header (0x80000)；若板卡为 FU68X6，则 header 不写入且 app offset 固定为 0x1500
+            if board == 'FU68X6':
+                app_offset = 0x1500
+                header_offset = 0
+            else:
+                # 读取 header offset 输入框
+                header_offset_str = self.header_offset_entry.get().strip()
+                try:
+                    header_offset = int(header_offset_str, 0)
+                except Exception:
+                    header_offset = 0x80000
+                app_offset = offset
+
+            # 计算合并长度，保证包含 boot, header(if any), app, 以及 FU68X6 特殊写入的地址 0x1400
+            required_len = len(boot_data)
+            if header_offset and header_offset + len(app_header) > required_len:
+                required_len = header_offset + len(app_header)
+            if app_offset + len(app_data) > required_len:
+                required_len = app_offset + len(app_data)
+            # FU68X6 要在 0x1400 写入 1 字节
+            if board == 'FU68X6' and 0x1400 + 1 > required_len:
+                required_len = 0x1400 + 1
+
+            merged = bytearray([0xFF] * required_len)
             merged[:len(boot_data)] = boot_data
-            merged[0x80000:0x80000+len(app_header)] = app_header
-            merged[offset:offset+len(app_data)] = app_data
+
+            # 写入 header（header_offset==0 则跳过）
+            if header_offset:
+                merged[header_offset:header_offset+len(app_header)] = app_header
+
+            # 写入 app
+            merged[app_offset:app_offset+len(app_data)] = app_data
+
+            # FU68X6 特殊：在 0x1400 处写入 0xAA
+            if board == 'FU68X6':
+                merged[0x1400] = 0xAA
             out_path = filedialog.asksaveasfilename(title='保存合并文件', defaultextension='.bin', filetypes=[('BIN文件', '*.bin')])
             if out_path:
                 with open(out_path, 'wb') as f:
