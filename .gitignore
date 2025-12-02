@@ -6,3 +6,4 @@ BinMerge.spec
 build_log.txt
 *.spec
 build_log.txt
+*.Bin
